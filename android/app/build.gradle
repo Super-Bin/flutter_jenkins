@@ -1,0 +1,101 @@
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+if (flutterRoot == null) {
+    throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+apply plugin: 'com.android.application'
+apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+
+android {
+    compileSdkVersion 29
+
+    lintOptions {
+        disable 'InvalidPackage'
+    }
+
+    defaultConfig {
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        applicationId "com.flutter.flutter_jenkins"
+        minSdkVersion 16
+        targetSdkVersion 29
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+        flavorDimensions "channel", "env"
+    }
+
+    buildTypes {
+        release {
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    productFlavors {
+        // 不设置，继承defaultConfig中的配置
+        // 通用渠道
+        common {
+            dimension "channel"
+        }
+
+        // 华为
+        huawei {
+            dimension "channel"
+            manifestPlaceholders = [
+                    SF_CHANNEL_VALUE: "huawei",
+            ]
+        }
+
+        // 测试环境
+        dev {
+            applicationIdSuffix ".dev"
+            dimension "env"
+            manifestPlaceholders = [
+                    APP_NAME               : "@string/app_name_dev",
+            ]
+        }
+
+        // 生产环境
+        pro {
+            dimension "env"
+            manifestPlaceholders = [
+                    APP_NAME               : "@string/app_name",
+            ]
+        }
+    }
+
+    // 打包
+    android.applicationVariants.all { variant ->
+        variant.outputs.all {
+            def date = new Date().format("yyyyMMddHHmm", TimeZone.getTimeZone("GMT+08"))
+            def channelName = variant.productFlavors[0].name
+            def envName = variant.productFlavors[1].name
+            println("variant.productFlavors channelName = ${channelName} + envName = ${envName}")
+//            def fileName = "app_${variant.versionName}_${variant.productFlavors[0].name}_release.apk"
+            def fileName = "app-${channelName}-${envName}-${defaultConfig.versionName}-${variant.buildType.name}-${date}.apk".toLowerCase();
+            outputFileName = fileName
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
